@@ -1,4 +1,6 @@
-pub mod formats;
+mod error;
+mod formats;
 
 #[doc(inline)]
-pub use formats::plateau::{plateau_building, plateau_building_bytes};
+pub use error::Error;
+pub use formats::plateau::bldg::plateau_bldg;

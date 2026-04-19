@@ -6,8 +6,8 @@ PLATEAU の CityGML は一例で、今後は他の入力形式もアダプタと
 
 ### PLATEAU を使う例
 ```rust
-use citygml_spatial_id::plateau_building;
+use citygml_spatial_id::plateau_bldg;
 
-let ids = plateau_building(xml_string, 25, 0.0)?;
+let ids = plateau_bldg(xml_string, 25, 0.0)?;
 println!("{}", ids.len());
 ```
