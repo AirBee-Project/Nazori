@@ -7,5 +7,3 @@ edition = "2024"
 kasane-logic ={path = "../kasane-logic"}
 quick-xml = "0.39.2"
 ordered-float = { version = "5.1.0", default-features = false }
-rayon = "1.11.0"
-indicatif = { version = "0.17", features = ["rayon"] }

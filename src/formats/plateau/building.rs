@@ -2,28 +2,7 @@ use kasane_logic::Coordinate;
 use ordered_float::OrderedFloat;
 use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
-use std::fs::File;
-use std::io::BufReader;
-
-/// 建物の属性情報
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub struct BuildingAttribute {
-    pub gml_id: String,
-    pub uro_building_id: String,
-    pub uro_city_code: String,
-    pub class_code: String,
-
-    pub measured_height: Option<OrderedFloat<f64>>,
-    pub lod1_height_type: Option<i32>,
-    pub uro_prefecture_code: Option<String>,
-    pub usage_code: Option<i32>,
-}
-
-/// 建物の形状情報
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct BuildingShape {
-    pub surfaces: Vec<Vec<Coordinate>>,
-}
+use std::io::{BufRead, Cursor};
 
 /// 解析中のタグ状態
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -53,27 +32,46 @@ fn is_local(name: &[u8], local: &[u8]) -> bool {
 }
 
 /// Building を (Attribute, Shape) のペアで返すパーサ
-pub struct BuildingParser {
-    reader: Reader<BufReader<File>>,
+pub(crate) struct BuildingParser<R: BufRead> {
+    reader: Reader<R>,
     buf: Vec<u8>,
 
-    // 解析中の属性を保持
     current_attribute: BuildingAttribute,
-
     current_tag: TargetTag,
     current_lod: LodLevel,
-
-    /// LOD 別に形状を一時保持
     lod1_surfaces: Vec<Vec<Coordinate>>,
     lod2_surfaces: Vec<Vec<Coordinate>>,
-
     current_ring: Vec<Coordinate>,
     pos_text_buf: String,
 }
 
-impl BuildingParser {
-    pub fn new(file: File) -> Self {
-        let mut reader = Reader::from_reader(BufReader::new(file));
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub(crate) struct BuildingAttribute {
+    pub gml_id: String,
+    pub uro_building_id: String,
+    pub uro_city_code: String,
+    pub class_code: String,
+
+    pub measured_height: Option<OrderedFloat<f64>>,
+    pub lod1_height_type: Option<i32>,
+    pub uro_prefecture_code: Option<String>,
+    pub usage_code: Option<i32>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq)]
+pub(crate) struct BuildingShape {
+    pub surfaces: Vec<Vec<Coordinate>>,
+}
+
+impl BuildingParser<Cursor<Vec<u8>>> {
+    pub fn from_bytes(input: &[u8]) -> Self {
+        Self::new(Cursor::new(input.to_vec()))
+    }
+}
+
+impl<R: BufRead> BuildingParser<R> {
+    pub fn new(reader: R) -> Self {
+        let mut reader = Reader::from_reader(reader);
         reader.config_mut().trim_text(true);
 
         Self {
@@ -139,8 +137,13 @@ impl BuildingParser {
     }
 }
 
-impl Iterator for BuildingParser {
-    // 戻り値を Attribute と Shape のタプルに変更
+pub(crate) fn parse_building_shapes(xml: &[u8]) -> Vec<BuildingShape> {
+    BuildingParser::from_bytes(xml)
+        .map(|(_, shape)| shape)
+        .collect()
+}
+
+impl<R: BufRead> Iterator for BuildingParser<R> {
     type Item = (BuildingAttribute, BuildingShape);
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -148,7 +151,6 @@ impl Iterator for BuildingParser {
             match self.reader.read_event_into(&mut self.buf) {
                 Ok(Event::Start(e)) => match e.name().as_ref() {
                     n if is_local(n, b"Building") => {
-                        // 新しい建物の開始：属性と一時バッファをリセット
                         self.current_attribute = BuildingAttribute::default();
                         Self::parse_building_attributes(&mut self.current_attribute, &e);
 
@@ -237,43 +239,35 @@ impl Iterator for BuildingParser {
                     }
                 }
 
-                Ok(Event::End(e)) => {
-                    match e.name().as_ref() {
-                        n if is_local(n, b"Polygon") => {
-                            self.flush_current_polygon();
-                            self.pos_text_buf.clear();
-                            self.current_tag = TargetTag::None;
-                        }
-
-                        n if is_local(n, b"lod1Solid")
-                            || is_local(n, b"lod2Solid")
-                            || is_local(n, b"lod2MultiSurface") =>
-                        {
-                            self.current_lod = LodLevel::None;
-                        }
-
-                        n if is_local(n, b"Building") => {
-                            // 建物の終了タグで、属性と形状を組み合わせて返す
-
-                            // 形状の確定: LOD2 優先、なければ LOD1
-                            let surfaces = if !self.lod2_surfaces.is_empty() {
-                                std::mem::take(&mut self.lod2_surfaces)
-                            } else {
-                                std::mem::take(&mut self.lod1_surfaces)
-                            };
-                            let shape = BuildingShape { surfaces };
-
-                            // 属性の取り出し（次回のためにデフォルト値に入れ替え）
-                            let attribute = std::mem::take(&mut self.current_attribute);
-
-                            return Some((attribute, shape));
-                        }
-
-                        _ => {
-                            self.current_tag = TargetTag::None;
-                        }
+                Ok(Event::End(e)) => match e.name().as_ref() {
+                    n if is_local(n, b"Polygon") => {
+                        self.flush_current_polygon();
+                        self.pos_text_buf.clear();
+                        self.current_tag = TargetTag::None;
                     }
-                }
+
+                    n if is_local(n, b"lod1Solid")
+                        || is_local(n, b"lod2Solid")
+                        || is_local(n, b"lod2MultiSurface") =>
+                    {
+                        self.current_lod = LodLevel::None;
+                    }
+
+                    n if is_local(n, b"Building") => {
+                        let surfaces = if !self.lod2_surfaces.is_empty() {
+                            std::mem::take(&mut self.lod2_surfaces)
+                        } else {
+                            std::mem::take(&mut self.lod1_surfaces)
+                        };
+                        let shape = BuildingShape { surfaces };
+                        let attribute = std::mem::take(&mut self.current_attribute);
+                        return Some((attribute, shape));
+                    }
+
+                    _ => {
+                        self.current_tag = TargetTag::None;
+                    }
+                },
 
                 Ok(Event::Eof) => break,
                 Err(e) => {
