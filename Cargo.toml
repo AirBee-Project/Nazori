@@ -1,9 +1,9 @@
 [package]
-name = "Nazori"
+name = "nazori"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-kasane-logic ={path = "../kasane-logic"}
 quick-xml = "0.39.2"
 ordered-float = { version = "5.1.0", default-features = false }
+kasane-logic = { git = "https://github.com/AirBee-Project/Kasane-Logic.git", branch = "main" ,features = ["openapi","serde"]}

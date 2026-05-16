@@ -1,5 +1,5 @@
-use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
+use quick_xml::events::{BytesStart, Event};
 use std::io::{BufRead, Cursor};
 
 use kasane_logic::Coordinate;
@@ -69,10 +69,10 @@ impl<R: BufRead> BldgParser<R> {
 
     fn parse_bldg_id(attr: &mut BldgAttribute, e: &BytesStart) {
         for a in e.attributes().flatten() {
-            if a.key.as_ref().ends_with(b"id") {
-                if let Ok(val) = a.unescape_value() {
-                    attr.gml_id = val.into_owned();
-                }
+            if a.key.as_ref().ends_with(b"id")
+                && let Ok(val) = a.unescape_value()
+            {
+                attr.gml_id = val.into_owned();
             }
         }
     }
@@ -100,8 +100,12 @@ impl<R: BufRead> BldgParser<R> {
         }
 
         match self.current_lod {
-            LodLevel::Lod1 => self.lod1_surfaces.push(std::mem::take(&mut self.current_ring)),
-            LodLevel::Lod2 => self.lod2_surfaces.push(std::mem::take(&mut self.current_ring)),
+            LodLevel::Lod1 => self
+                .lod1_surfaces
+                .push(std::mem::take(&mut self.current_ring)),
+            LodLevel::Lod2 => self
+                .lod2_surfaces
+                .push(std::mem::take(&mut self.current_ring)),
             LodLevel::None => {}
         }
     }
@@ -142,9 +146,15 @@ impl<R: BufRead> BldgParser<R> {
                 TargetTag::UroBuildingId => self.current_attribute.uro_building_id = s.to_string(),
                 TargetTag::UroCity => self.current_attribute.uro_city_code = s.to_string(),
                 TargetTag::BldgClass => self.current_attribute.class_code = s.to_string(),
-                TargetTag::MeasuredHeight => self.current_attribute.measured_height = s.parse().ok(),
-                TargetTag::Lod1HeightType => self.current_attribute.lod1_height_type = s.parse().ok(),
-                TargetTag::UroPrefecture => self.current_attribute.uro_prefecture_code = Some(s.to_string()),
+                TargetTag::MeasuredHeight => {
+                    self.current_attribute.measured_height = s.parse().ok()
+                }
+                TargetTag::Lod1HeightType => {
+                    self.current_attribute.lod1_height_type = s.parse().ok()
+                }
+                TargetTag::UroPrefecture => {
+                    self.current_attribute.uro_prefecture_code = Some(s.to_string())
+                }
                 TargetTag::BldgUsage => self.current_attribute.usage_code = s.parse().ok(),
                 TargetTag::PosList => {
                     self.pos_text_buf.push_str(s);
@@ -155,7 +165,10 @@ impl<R: BufRead> BldgParser<R> {
         }
     }
 
-    fn handle_end(&mut self, e: quick_xml::events::BytesEnd<'_>) -> Option<(BldgAttribute, BldgShape)> {
+    fn handle_end(
+        &mut self,
+        e: quick_xml::events::BytesEnd<'_>,
+    ) -> Option<(BldgAttribute, BldgShape)> {
         match e.name().as_ref() {
             n if is_local(n, b"Polygon") => {
                 self.push_pos_list();
@@ -190,7 +203,10 @@ impl<R: BufRead> Iterator for BldgParser<R> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let event = self.reader.read_event_into(&mut self.buf).map(|event| event.into_owned());
+            let event = self
+                .reader
+                .read_event_into(&mut self.buf)
+                .map(|event| event.into_owned());
 
             match event {
                 Ok(Event::Start(e)) => self.handle_start(e.into_owned()),
@@ -212,15 +228,4 @@ impl<R: BufRead> Iterator for BldgParser<R> {
 
         None
     }
-}
-
-pub(crate) fn parse_bldg_shapes(xml: &[u8]) -> Result<Vec<BldgShape>, quick_xml::Error> {
-    let mut shapes = Vec::new();
-
-    for item in BldgParser::from_bytes(xml) {
-        let (_, shape) = item?;
-        shapes.push(shape);
-    }
-
-    Ok(shapes)
 }
