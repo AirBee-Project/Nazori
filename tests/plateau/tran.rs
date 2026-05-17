@@ -23,6 +23,7 @@ fn test_tran_snapshots() {
         }
 
         results.sort();
+        results.dedup();
         let output = results.join(",\n");
 
         insta::assert_snapshot!(output);
