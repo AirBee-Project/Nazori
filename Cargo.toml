@@ -10,3 +10,8 @@ kasane-logic = { git = "https://github.com/AirBee-Project/Kasane-Logic.git", bra
 
 [dev-dependencies]
 insta = { version = "1.47.2", features = ["glob"] }
+
+[dev-dependencies.cargo-husky]
+version = "1"
+default-features = false
+features = ["precommit-hook","run-cargo-clippy","run-cargo-fmt"]
