@@ -8,6 +8,8 @@ pub enum Error {
     Kasane(SpatialError),
     /// 入力データが途中で切れている、または必要な情報が足りない。
     IncompleteInput,
+    /// サポートしていない、または間違った形式のデータが渡された
+    InvalidFormat(String),
 }
 
 impl std::fmt::Display for Error {
@@ -16,6 +18,7 @@ impl std::fmt::Display for Error {
             Self::Xml(err) => write!(f, "XML parse error: {err}"),
             Self::Kasane(err) => write!(f, "spatial conversion error: {err}"),
             Self::IncompleteInput => write!(f, "input data is incomplete"),
+            Self::InvalidFormat(msg) => write!(f, "invalid format: {msg}"),
         }
     }
 }

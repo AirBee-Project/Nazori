@@ -11,24 +11,32 @@ pub fn bldg<'a>(
     xml: &'a str,
     zoom: u8,
     epsilon: f64,
-) -> impl Iterator<Item = Result<SingleId, Error>> + 'a {
-    BldgParser::new(Cursor::new(xml.as_bytes())).flat_map(move |item_res| {
-        let process = move || -> Result<Vec<SingleId>, Error> {
-            let (_, shape) = item_res?;
-            let mut polygons = Vec::new();
-            for polygon_points in shape.surfaces {
-                let polygon = Polygon::new(polygon_points, epsilon);
-                polygons.push(polygon);
-            }
-            let solid = Solid::new(polygons, epsilon)?;
-            let ids = solid.cover_single_ids(zoom)?.collect::<Vec<_>>();
-            Ok(ids)
-        };
+) -> Result<impl Iterator<Item = Result<SingleId, Error>> + 'a, Error> {
+    if !xml.contains("bldg:Building") && !xml.contains("<Building") {
+        return Err(Error::InvalidFormat(
+            "The provided XML does not appear to contain any Building data.".to_string(),
+        ));
+    }
 
-        match process() {
-            Ok(ids) => Box::new(ids.into_iter().map(Ok))
-                as Box<dyn Iterator<Item = Result<SingleId, Error>>>,
-            Err(e) => Box::new(std::iter::once(Err(e))) as _,
-        }
-    })
+    Ok(
+        BldgParser::new(Cursor::new(xml.as_bytes())).flat_map(move |item_res| {
+            let process = move || -> Result<Vec<SingleId>, Error> {
+                let (_, shape) = item_res?;
+                let mut polygons = Vec::new();
+                for polygon_points in shape.surfaces {
+                    let polygon = Polygon::new(polygon_points, epsilon);
+                    polygons.push(polygon);
+                }
+                let solid = Solid::new(polygons, epsilon)?;
+                let ids = solid.cover_single_ids(zoom)?.collect::<Vec<_>>();
+                Ok(ids)
+            };
+
+            match process() {
+                Ok(ids) => Box::new(ids.into_iter().map(Ok))
+                    as Box<dyn Iterator<Item = Result<SingleId, Error>>>,
+                Err(e) => Box::new(std::iter::once(Err(e))) as _,
+            }
+        }),
+    )
 }
