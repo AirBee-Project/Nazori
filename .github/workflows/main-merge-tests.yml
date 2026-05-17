@@ -45,8 +45,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: "features: none"
-            features: ""
+          - name: "features: default (parallel active)"
+            default_features: true
+            wasm_build: false
+          - name: "features: none (parallel inactive)"
+            default_features: false
+            wasm_build: true
 
     steps:
       - name: Checkout
@@ -56,6 +60,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+          targets: wasm32-unknown-unknown
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -65,14 +70,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -n "${{ matrix.features }}" ]; then
+          if [ "${{ matrix.default_features }}" = "true" ]; then
             cargo test \
               --locked \
               --lib \
               --bins \
-              --tests \
-              --no-default-features \
-              --features "${{ matrix.features }}"
+              --tests
           else
             cargo test \
               --locked \
@@ -87,14 +90,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [ -n "${{ matrix.features }}" ]; then
+          if [ "${{ matrix.default_features }}" = "true" ]; then
             cargo clippy \
               --locked \
               --lib \
               --bins \
               --tests \
-              --no-default-features \
-              --features "${{ matrix.features }}" \
               -- -D warnings
           else
             cargo clippy \
@@ -105,3 +106,10 @@ jobs:
               --no-default-features \
               -- -D warnings
           fi
+
+      - name: Verify WebAssembly compilation (parallel inactive)
+        if: matrix.wasm_build == true
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --target wasm32-unknown-unknown --no-default-features --lib
