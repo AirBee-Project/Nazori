@@ -7,3 +7,6 @@ edition = "2024"
 quick-xml = "0.39.2"
 ordered-float = { version = "5.1.0", default-features = false }
 kasane-logic = { git = "https://github.com/AirBee-Project/Kasane-Logic.git", branch = "main" ,features = ["openapi","serde"]}
+
+[dev-dependencies]
+insta = { version = "1.47.2", features = ["glob"] }
