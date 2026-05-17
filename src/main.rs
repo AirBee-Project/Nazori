@@ -5,9 +5,9 @@ use kasane_logic::{IterFlexIds, RangeId, SpatialIdSet};
 use nazori::plateau;
 
 fn main() {
-    let gml = read_to_string("sample/tran.gml").unwrap();
+    let gml = read_to_string("sample/plateau/bldg/53394680_bldg_6697_op.gml").unwrap();
 
-    let a = plateau::tran(&gml, 25, 0.1);
+    let a = plateau::bldg(&gml, 24, 0.0);
 
     let mut file = OpenOptions::new()
         .create(true)
@@ -17,8 +17,15 @@ fn main() {
 
     let mut set = SpatialIdSet::new();
 
-    for ele in a {
-        set.insert(ele.unwrap())
+    for res in a {
+        match res {
+            Ok(v) => {
+                set.insert(v);
+            }
+            Err(e) => {
+                eprintln!("Error occurred: {}", e);
+            }
+        }
     }
 
     for ele in set.iter_flex_ids() {

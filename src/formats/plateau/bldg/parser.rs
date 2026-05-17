@@ -1,6 +1,6 @@
 use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
-use std::io::{BufRead, Cursor};
+use std::io::BufRead;
 
 use kasane_logic::Coordinate;
 
@@ -41,12 +41,6 @@ pub(crate) struct BldgParser<R: BufRead> {
     lod2_surfaces: Vec<Vec<Coordinate>>,
     current_ring: Vec<Coordinate>,
     pos_text_buf: String,
-}
-
-impl BldgParser<Cursor<Vec<u8>>> {
-    pub fn from_bytes(input: &[u8]) -> Self {
-        Self::new(Cursor::new(input.to_vec()))
-    }
 }
 
 impl<R: BufRead> BldgParser<R> {

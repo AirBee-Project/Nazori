@@ -2,7 +2,7 @@ mod model;
 mod parser;
 
 use crate::Error;
-use kasane_logic::{CoverSingleIds, Polygon, SingleId, Solid};
+use kasane_logic::{CoverSingleIds, Polygon, SingleId};
 use parser::TranParser;
 use std::io::Cursor;
 
