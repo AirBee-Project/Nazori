@@ -3,10 +3,15 @@ name = "nazori"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = ["parallel"]
+parallel = ["dep:rayon"]
+
 [dependencies]
 quick-xml = "0.39.2"
 ordered-float = { version = "5.1.0", default-features = false }
-kasane-logic = { git = "https://github.com/AirBee-Project/Kasane-Logic.git", branch = "main" ,features = ["openapi","serde"]}
+kasane-logic = { git = "https://github.com/AirBee-Project/Kasane-Logic.git", branch = "main"}
+rayon = { version = "1.10.0", optional = true }
 
 [dev-dependencies]
 insta = { version = "1.47.2", features = ["glob"] }
@@ -15,3 +20,19 @@ insta = { version = "1.47.2", features = ["glob"] }
 version = "1"
 default-features = false
 features = ["precommit-hook","run-cargo-clippy","run-cargo-fmt"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+opt-level = 'z'
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
