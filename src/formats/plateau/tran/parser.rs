@@ -20,7 +20,13 @@ enum LodLevel {
 }
 
 fn is_local(name: &[u8], local: &[u8]) -> bool {
-    name == local || name.ends_with(local)
+    if name == local {
+        return true;
+    }
+    if let Some(pos) = name.iter().position(|&b| b == b':') {
+        return &name[pos + 1..] == local;
+    }
+    false
 }
 
 pub(crate) struct TranParser<R: BufRead> {
