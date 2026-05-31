@@ -8,8 +8,6 @@ use std::io::Cursor;
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
-#[cfg(feature = "parallel")]
-use std::sync::mpsc;
 
 /// PLATEAU の道 XML を受け取り、空間 ID のイテレーターを返す。
 #[cfg(feature = "parallel")]
@@ -28,37 +26,44 @@ pub fn tran<'a>(
         ));
     }
 
-    let parser = TranParser::new(Cursor::new(xml.as_bytes()));
-    let items = parser.collect::<Result<Vec<_>, _>>().map_err(Error::Xml)?;
+    let mut parser = TranParser::new(Cursor::new(xml.as_bytes()));
 
-    let (tx, rx) = mpsc::sync_channel(1024);
-
-    rayon::spawn(move || {
-        items.into_par_iter().for_each_with(tx, |tx, item| {
-            let process = || -> Result<Vec<SingleId>, Error> {
-                let (_, shape) = item;
-                let mut ids = Vec::new();
-                for polygon_points in shape.surfaces {
-                    let polygon = Polygon::new(polygon_points, epsilon);
-                    ids.extend(polygon.cover_single_ids(zoom)?);
-                }
-                Ok(ids)
-            };
-
-            match process() {
-                Ok(ids) => {
-                    for id in ids {
-                        let _ = tx.send(Ok(id));
-                    }
-                }
-                Err(e) => {
-                    let _ = tx.send(Err(e));
-                }
+    Ok(std::iter::from_fn(move || {
+        let mut chunk = Vec::with_capacity(1024);
+        for _ in 0..1024 {
+            match parser.next() {
+                Some(item) => chunk.push(item),
+                None => break,
             }
-        });
-    });
+        }
 
-    Ok(rx.into_iter())
+        if chunk.is_empty() {
+            return None;
+        }
+
+        let results: Vec<Result<SingleId, Error>> = chunk
+            .into_par_iter()
+            .flat_map(|item_res| {
+                let process = || -> Result<Vec<SingleId>, Error> {
+                    let (_, shape) = item_res.map_err(Error::Xml)?;
+                    let mut ids = Vec::new();
+                    for polygon_points in shape.surfaces {
+                        let polygon = Polygon::new(polygon_points, epsilon);
+                        ids.extend(polygon.cover_single_ids(zoom)?);
+                    }
+                    Ok(ids)
+                };
+
+                match process() {
+                    Ok(ids) => ids.into_iter().map(Ok).collect::<Vec<_>>(),
+                    Err(e) => vec![Err(e)],
+                }
+            })
+            .collect();
+
+        Some(results.into_iter())
+    })
+    .flatten())
 }
 
 /// PLATEAU の道 XML を受け取り、空間 ID のイテレーターを返す。
