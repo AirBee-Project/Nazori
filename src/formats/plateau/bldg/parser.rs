@@ -70,7 +70,7 @@ impl<R: BufRead> BldgParser<R> {
     fn parse_bldg_id(attr: &mut BldgAttribute, e: &BytesStart) {
         for a in e.attributes().flatten() {
             if a.key.as_ref().ends_with(b"id")
-                && let Ok(val) = a.unescape_value()
+                && let Ok(val) = a.normalized_value(quick_xml::XmlVersion::Explicit1_1)
             {
                 attr.gml_id = val.into_owned();
             }
