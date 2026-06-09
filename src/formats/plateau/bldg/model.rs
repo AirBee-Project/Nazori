@@ -3,7 +3,7 @@ use ordered_float::OrderedFloat;
 
 /// PLATEAU の建築物属性をそのまま保持する型。
 #[derive(Debug, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub(crate) struct BldgAttribute {
+pub struct BldgAttribute {
     pub gml_id: String,
     pub uro_building_id: String,
     pub uro_city_code: String,

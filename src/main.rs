@@ -5,9 +5,11 @@ use kasane_logic::{IterFlexIds, RangeId, SpatialIdSet};
 use nazori::plateau;
 
 fn main() {
-    let gml = read_to_string("sample/plateau/bldg/63404706_bldg_6697_op.gml").unwrap();
+    let gml =
+        read_to_string("C:/Users/tomor/Downloads/13113_shibuya-ku_pref_2025_citygml_1_op/udx/tran/53393575_tran_6697_op.gml")
+            .unwrap();
 
-    let a = plateau::bldg(&gml, 26, 0.0).unwrap();
+    let a = plateau::tran(&gml, 24, 0.0).unwrap();
 
     let mut file = OpenOptions::new()
         .create(true)
