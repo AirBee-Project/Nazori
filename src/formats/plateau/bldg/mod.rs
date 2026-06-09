@@ -1,7 +1,7 @@
 mod model;
 mod parser;
 
-pub use model::BldgAttribute;
+pub use model::{BldgAttribute, BldgUsage};
 
 use crate::Error;
 use kasane_logic::{CoverRangeIds, CoverSingleIds, Polygon, RangeId, SingleId, Solid};

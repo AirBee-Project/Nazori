@@ -9,6 +9,9 @@ use super::model::{TranAttribute, TranShape};
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum TargetTag {
     None,
+    Class,
+    Function,
+    Usage,
     PosList,
 }
 
@@ -129,6 +132,9 @@ impl<R: BufRead> TranParser<R> {
             n if is_local(n, b"lod2MultiSurface") || is_local(n, b"lod2Solid") => {
                 self.current_lod = LodLevel::Lod2
             }
+            n if is_local(n, b"class") => self.current_tag = TargetTag::Class,
+            n if is_local(n, b"function") => self.current_tag = TargetTag::Function,
+            n if is_local(n, b"usage") => self.current_tag = TargetTag::Usage,
             n if is_local(n, b"posList") => {
                 self.current_tag = TargetTag::PosList;
                 self.pos_text_buf.clear();
@@ -141,11 +147,14 @@ impl<R: BufRead> TranParser<R> {
         if let Ok(text) = e.decode() {
             let s = text.as_ref();
             match self.current_tag {
+                TargetTag::Class => self.current_attribute.class = Some(s.into()),
+                TargetTag::Function => self.current_attribute.function = Some(s.into()),
+                TargetTag::Usage => self.current_attribute.usage = Some(s.into()),
                 TargetTag::PosList => {
                     self.pos_text_buf.push_str(s);
                     self.pos_text_buf.push(' ');
                 }
-                TargetTag::None => {}
+                _ => {}
             }
         }
     }

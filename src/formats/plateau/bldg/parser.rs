@@ -155,7 +155,11 @@ impl<R: BufRead> BldgParser<R> {
                 TargetTag::UroPrefecture => {
                     self.current_attribute.uro_prefecture_code = Some(s.to_string())
                 }
-                TargetTag::BldgUsage => self.current_attribute.usage_code = s.parse().ok(),
+                TargetTag::BldgUsage => {
+                    self.current_attribute.usage_code = s.parse().ok();
+                    self.current_attribute.usage =
+                        self.current_attribute.usage_code.map(Into::into);
+                }
                 TargetTag::PosList => {
                     self.pos_text_buf.push_str(s);
                     self.pos_text_buf.push(' ');
