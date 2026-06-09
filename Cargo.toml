@@ -21,7 +21,6 @@ version = "1"
 default-features = false
 features = ["precommit-hook","run-cargo-clippy","run-cargo-fmt"]
 
-
 [profile.dev]
 opt-level = 1
 
