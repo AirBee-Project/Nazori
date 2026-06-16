@@ -65,6 +65,7 @@ async function main() {
 
   const uploadAreaEl = document.querySelector('.upload-area') as HTMLElement;
   const fileListEl = document.getElementById('file-list') as HTMLUListElement;
+  const clearBtn = document.getElementById('clear-btn') as HTMLButtonElement;
 
   function handleFileSelect(files: FileList | File[]) {
     selectedFiles = Array.from(files);
@@ -74,12 +75,14 @@ async function main() {
     if (selectedFiles.length === 1) {
       fileNameEl.textContent = selectedFiles[0].name;
       fileListEl.classList.remove('hidden');
+      clearBtn.classList.remove('hidden');
       const li = document.createElement('li');
       li.textContent = selectedFiles[0].name;
       fileListEl.appendChild(li);
     } else if (selectedFiles.length > 1) {
       fileNameEl.textContent = `${selectedFiles.length}個のファイルを選択中`;
       fileListEl.classList.remove('hidden');
+      clearBtn.classList.remove('hidden');
       selectedFiles.forEach(file => {
         const li = document.createElement('li');
         li.textContent = file.name;
@@ -88,11 +91,19 @@ async function main() {
     } else {
       fileNameEl.textContent = 'XMLファイルを選択 または ドロップ';
       fileListEl.classList.add('hidden');
+      clearBtn.classList.add('hidden');
     }
     
     convertBtn.disabled = selectedFiles.length === 0;
     resultAreaEl.classList.add('hidden');
   }
+
+  clearBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fileUploadEl.value = '';
+    handleFileSelect([]);
+  });
 
   async function processFiles(files: File[]) {
     if (files.length === 0) return;

@@ -16,19 +16,20 @@
       <main class="container">
         <section class="manual">
           <h2>説明</h2>
+          <p class="manual-steps">
             1. 変換設定を選んでください（対象・変換方式・フォーマット・ズームレベル）。<br>
             2. 対象のXMLファイルを選択、または枠内にドラッグ＆ドロップしてください。<br>
             3. 「変換開始」ボタンを押すと処理が始まります。<br>
             4. 変換が完了すると、結果ファイルが自動ダウンロードされます。<br>
           </p>
-          <div style="margin-top: 0.5rem; background: #f8fafc; border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 4px;">
-            <p style="margin-bottom: 0.25rem; color: var(--text-main); font-weight: 500;">変換方式について</p>
-            <ul style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
-              <li style="margin-bottom: 0.25rem;"><strong>Flat</strong>: 空間IDのリストのみを高速に抽出します。</li>
+          <div class="method-info">
+            <p class="method-title">[変換方式について]</p>
+            <ul>
+              <li><strong>Flat</strong>: 空間IDのリストのみを高速に抽出します。</li>
               <li><strong>With Attr</strong>: 空間IDと同時に、元の3Dモデルが持つ属性情報を紐付けてJSON形式で出力します。</li>
             </ul>
           </div>
-          <p style="margin-top: 0.5rem;">
+          <p class="note">
             <small>※データ量が多い場合はブラウザが数秒〜数十秒フリーズすることがあります</small>
           </p>
         </section>
@@ -81,10 +82,13 @@
         </section>
 
         <section class="upload-area">
-          <label for="file-upload" class="file-label">
-            <span id="file-name">XMLファイルを選択 または ドロップ</span>
-            <input type="file" id="file-upload" accept=".xml,.gml" multiple />
-          </label>
+          <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            <label for="file-upload" class="file-label">
+              <span id="file-name">XMLファイルを選択 または ドロップ</span>
+              <input type="file" id="file-upload" accept=".xml,.gml" multiple />
+            </label>
+            <button id="clear-btn" class="clear-btn hidden" title="選択を取り消す">×</button>
+          </div>
           <ul id="file-list" class="file-list hidden"></ul>
         </section>
         
