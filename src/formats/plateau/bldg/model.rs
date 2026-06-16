@@ -33,6 +33,13 @@ pub enum BldgUsage {
     OrdinaryWallLess, // 3003
     RobustWallLess,   // 3004
 
+    // ---- 都市計画基礎調査（400番台など） ----
+    Retail,     // 411: 物品販売業店舗
+    Restaurant, // 412: 飲食店
+    Wholesale,  // 413: 卸売業店舗
+    Amusement,  // 454: 遊技場
+    Hotel,      // 461: 宿泊施設
+
     // ---- 分類しない・不明な分類 ----
     Unclassified, // 1060, 3000
 
@@ -51,6 +58,11 @@ impl From<i32> for BldgUsage {
             1050 => Self::Sports,
             1060 | 3000 => Self::Unclassified,
             1070 => Self::TrafficOrStorage,
+            411 => Self::Retail,
+            412 => Self::Restaurant,
+            413 => Self::Wholesale,
+            454 => Self::Amusement,
+            461 => Self::Hotel,
             3001 => Self::OrdinaryBuilding,
             3002 => Self::RobustBuilding,
             3003 => Self::OrdinaryWallLess,
