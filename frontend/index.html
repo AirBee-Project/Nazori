@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nazori - 空間ID変換ツール</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Nazori</h1>
+        <p>3Dモデルデータ（CityGMLなど）を空間IDに変換するツール</p>
+      </header>
+
+      <main class="container">
+        <section class="manual">
+          <h2>説明</h2>
+            1. 変換設定を選んでください（対象・変換方式・フォーマット・ズームレベル）。<br>
+            2. 対象のXMLファイルを選択、または枠内にドラッグ＆ドロップしてください。<br>
+            3. 「変換開始」ボタンを押すと処理が始まります。<br>
+            4. 変換が完了すると、結果ファイルが自動ダウンロードされます。<br>
+          </p>
+          <div style="margin-top: 0.5rem; background: #f8fafc; border: 1px solid var(--border-color); padding: 0.75rem; border-radius: 4px;">
+            <p style="margin-bottom: 0.25rem; color: var(--text-main); font-weight: 500;">変換方式について</p>
+            <ul style="padding-left: 1.25rem; font-size: 0.85rem; color: var(--text-muted); line-height: 1.5;">
+              <li style="margin-bottom: 0.25rem;"><strong>Flat</strong>: 空間IDのリストのみを高速に抽出します。</li>
+              <li><strong>With Attr</strong>: 空間IDと同時に、元の3Dモデルが持つ属性情報を紐付けてJSON形式で出力します。</li>
+            </ul>
+          </div>
+          <p style="margin-top: 0.5rem;">
+            <small>※データ量が多い場合はブラウザが数秒〜数十秒フリーズすることがあります</small>
+          </p>
+        </section>
+
+        <section class="config">
+          <div class="input-group">
+            <label for="target">対象</label>
+            <select id="target">
+              <option value="bldg">建築物 (bldg)</option>
+              <option value="tran">道路等 (tran)</option>
+            </select>
+          </div>
+          
+          <div class="input-group">
+            <label for="method">変換方式</label>
+            <select id="method">
+              <option value="flat_single">Flat (SingleId)</option>
+              <option value="flat_range">Flat (RangeId)</option>
+              <option value="with_attr_single">With Attr (SingleId)</option>
+              <option value="with_attr_range">With Attr (RangeId)</option>
+            </select>
+          </div>
+
+          <div class="input-group">
+            <label for="format">出力フォーマット</label>
+            <select id="format">
+              <option value="txt">TXT (カンマ区切り)</option>
+              <option value="json">JSON</option>
+            </select>
+            <small id="format-hint"></small>
+          </div>
+
+          <div class="input-group">
+            <label for="zoom">ズームレベル (Zoom)</label>
+            <input type="number" id="zoom" value="25" min="1" max="31" />
+          </div>
+
+          <div class="input-group">
+            <label for="epsilon">許容誤差 (Epsilon)</label>
+            <input type="number" id="epsilon" value="0.0" step="0.0001" />
+          </div>
+
+          <div class="input-group">
+            <label for="multi-mode">複数ファイル処理</label>
+            <select id="multi-mode">
+              <option value="merge">マージして1つに出力</option>
+              <option value="separate">個別のファイルに出力</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="upload-area">
+          <label for="file-upload" class="file-label">
+            <span id="file-name">XMLファイルを選択 または ドロップ</span>
+            <input type="file" id="file-upload" accept=".xml,.gml" multiple />
+          </label>
+          <ul id="file-list" class="file-list hidden"></ul>
+        </section>
+        
+        <div class="action-area" style="text-align: center; margin-bottom: 2rem;">
+          <button id="convert-btn" class="convert-btn" disabled>変換開始</button>
+        </div>
+
+        <section id="result-area" class="result hidden">
+          <h2>変換完了</h2>
+          <p id="result-message"></p>
+        </section>
+        
+        <div id="loading" class="hidden">変換中... (ブラウザが固まることがありますがそのままお待ちください)</div>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
