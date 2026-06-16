@@ -1,6 +1,7 @@
 use kasane_logic::Coordinate;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// PLATEAU 道路の分類（TranClass）を表す列挙型
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 pub enum TranClass {
     NationalRoad,    // "一般国道"
     PrefecturalRoad, // "都道府県道"
@@ -21,7 +22,8 @@ impl From<&str> for TranClass {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// PLATEAU 道路の機能（TranFunction）を表す列挙型
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 pub enum TranFunction {
     Carriageway,  // "車道"
     Sidewalk,     // "歩道"
@@ -42,7 +44,8 @@ impl From<&str> for TranFunction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// PLATEAU 道路の用途（TranUsage）を表す列挙型
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 pub enum TranUsage {
     Car,        // "自動車交通"
     Pedestrian, // "歩行者交通"
@@ -61,7 +64,8 @@ impl From<&str> for TranUsage {
     }
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// PLATEAU の道属性をそのまま保持する型。
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 pub struct TranAttribute {
     pub gml_id: String,
     pub class: Option<TranClass>,
