@@ -29,7 +29,6 @@ fn main() {
             }
         }
     }
-
     for ele in set.iter_flex_ids() {
         let _ = write!(file, "{},", RangeId::from(ele));
     }

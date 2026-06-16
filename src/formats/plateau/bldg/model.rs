@@ -2,7 +2,7 @@ use kasane_logic::Coordinate;
 use ordered_float::OrderedFloat;
 
 /// PLATEAU の建築物属性をそのまま保持する型。
-#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash)]
+#[derive(Debug, Clone, Default, PartialEq, PartialOrd, Eq, Ord, Hash, serde::Serialize)]
 pub struct BldgAttribute {
     pub gml_id: String,
     pub uro_building_id: String,
@@ -16,7 +16,7 @@ pub struct BldgAttribute {
 }
 
 /// PLATEAU 建築物の用途（Usage / Class）を表す列挙型
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 pub enum BldgUsage {
     // ---- CityGML 標準（1000番台） ----
     Residential,      // 1000
