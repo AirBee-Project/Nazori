@@ -7,13 +7,22 @@ use std::{
 };
 
 /// 解析に使用するズームレベル
-const ZOOM_LEVEL: u8 = 25;
+const ZOOM_LEVEL: u8 = 24;
 
 /// システム全体における「最も標準的な道路・用途」のベースリスク値
-const TRNA_RISK_BASE: u32 = 40;
+const TRNA_RISK_BASE: u32 = 70;
 
 /// 建物における「最も標準的な用途・高さ」のベースリスク値
-const BLDG_RISK_BASE: u32 = 70;
+const BLDG_RISK_BASE: u32 = 10;
+
+/// 建物リスクを周囲へ同心円状に伝播させる半径（セル数）
+const BLDG_SPREAD_RADIUS: u32 = 10;
+
+/// 建物リスクの同心円伝播で1セル離れるごとに減衰させるポイント
+const BLDG_SPREAD_DECAY: u32 = 10;
+
+/// 道路・建物リスクが地上から覆う高さ（ZOOM_LEVEL=24 では F インデックス ≒ メートル）
+const RISK_HEIGHT: i32 = 50;
 
 /// PLATEAUの建物データと道路データからドローンのリスクをマップしたヒートマップを出力する
 fn main() {
@@ -37,16 +46,20 @@ fn main() {
         bldg_table.count()
     );
 
-    // 3. 建物テーブルを F=0 に潰してから滑らかな水平スプレッド（減衰）を実行
+    // 3. 建物テーブルを F=0 に潰してから、建物の周りへ同心円状にリスクを伝播（減衰）させる
     let t = Instant::now();
     let bldg_risk_map = bldg_table
-        .clone()
         .plan()
-        .level_f(ZOOM_LEVEL, 0, 0) // F=0に潰す
+        .level_f(ZOOM_LEVEL, 0, 0) // F=0に潰す（高さ層の重複を除いて spread を軽くする）
+        // 建物中心から離れるほどリスクが下がる同心円状の伝播。重なりは大きい方を採用(既定のMax)。
+        .spread(ZOOM_LEVEL, BLDG_SPREAD_RADIUS, |v, dist| {
+            let decayed = v.saturating_sub((dist * BLDG_SPREAD_DECAY) as u8);
+            (decayed > 0).then_some(decayed)
+        })
         .execution()
         .unwrap();
     println!(
-        "[3] bldg spread (2D)     : {:>10} us (cells = {})",
+        "[3] bldg spread          : {:>10} us (cells = {})",
         t.elapsed().as_micros(),
         bldg_risk_map.count()
     );
@@ -60,7 +73,7 @@ fn main() {
         tran_table.count()
     );
 
-    // 5. 道路テーブルを F=0 に潰し、道路の周辺にもソフトバッファースプレッドを実行
+    // 5. 道路テーブルを F=0 に潰す（高さ方向の設定は 6.1 で level により行う）
     let t = Instant::now();
     let tran_risk_map = tran_table
         .plan()
@@ -73,17 +86,26 @@ fn main() {
         tran_risk_map.count()
     );
 
-    // 6. 建物リスクと道路リスクをそれぞれ高さ方向に減衰させながら3D展開
+    // 6. 建物リスクは level で高さを揃え、地上から RISK_HEIGHT まで一定リスクのバンドにする
     let t = Instant::now();
-    let bldg_risk_map_3d = expand_bldg_to_3d(bldg_risk_map, &bldg_table);
+    let bldg_risk_map_3d = bldg_risk_map
+        .plan()
+        .level_f(ZOOM_LEVEL, 0, RISK_HEIGHT)
+        .execution()
+        .unwrap();
     println!(
         "[6] bldg expand 3D       : {:>10} us (cells = {})",
         t.elapsed().as_micros(),
         bldg_risk_map_3d.count()
     );
 
+    // 6.1. 道路リスクも建物と同じく level で地上から RISK_HEIGHT まで一定リスクのバンドにする
     let t = Instant::now();
-    let tran_risk_map_3d = expand_tran_to_3d(tran_risk_map);
+    let tran_risk_map_3d = tran_risk_map
+        .plan()
+        .level_f(ZOOM_LEVEL, 0, RISK_HEIGHT)
+        .execution()
+        .unwrap();
     println!(
         "[6.1] tran expand 3D     : {:>10} us (cells = {})",
         t.elapsed().as_micros(),
@@ -118,15 +140,6 @@ fn main() {
     if let Some(dummy_id) = dummy_id {
         riskmap.insert(dummy_id, 0u8);
     }
-
-    // 6.4. 隙間の無いようにデフォルト値（0）で埋める
-    let t = Instant::now();
-    let riskmap = riskmap.plan().fill_default(0u8).execution().unwrap();
-    println!(
-        "[6.4] fill_default 3D    : {:>10} us (cells = {})",
-        t.elapsed().as_micros(),
-        riskmap.count()
-    );
 
     // 7. JSON へシリアライズ
     let t = Instant::now();
@@ -172,6 +185,9 @@ fn bldg_riskmap(xml: String) -> SpatialIdTable<u8> {
 }
 
 /// 建物1つ1つに対してリスク評価を行う (戻り値は 0 〜 100 の範囲)
+///
+/// 用途(usage) × 高さ(measured_height) × 構造種別(class) の3つの倍率を掛け合わせ、
+/// 建物ごとにリスク値へばらつきを持たせる。
 fn bldg_point(attr: BldgAttribute) -> u8 {
     use nazori::plateau::bldg::BldgUsage;
 
@@ -201,19 +217,29 @@ fn bldg_point(attr: BldgAttribute) -> u8 {
         None => 100, // 指定なしは標準(1.0倍)
     };
 
-    // 2. 高さによる倍率
-    //    高い建物ほど飛行高度に近く、衝突・落下時の影響が大きいためリスクが高い
+    // 2. 高さによる倍率（建物全体のリスクを変化させる主軸）
+    //    高い建物ほど飛行高度に近く、衝突・落下時の影響が大きいためリスクが高い。
+    //    1mあたり +8 ポイント加算し、高さによる差を大きく出す。
     let height_rate: u32 = match attr.measured_height {
         Some(h) => {
-            // 高さ(m)に応じて 100(基準) から段階的に加算する
-            // 例: 3m -> 115, 20m -> 200, 60m -> 400
+            // 例: 5m -> 140, 13m -> 204, 30m -> 340, 50m -> 500
             let h = h.into_inner().max(0.0) as u32;
-            100 + h * 5
+            100 + h * 8
         }
         None => 100, // 高さ不明は標準(1.0倍)
     };
 
-    let total_rate = (usage_rate * height_rate) / 100;
+    // 3. 構造種別(bldg:class)による倍率（これまで未使用のパラメータ）
+    //    堅牢な建物ほど規模が大きく密集、無壁舎(カーポート等)は人の滞留が少ない。
+    let structure_rate: u32 = match attr.class_code.as_str() {
+        "3001" => 100, // 普通建物
+        "3002" => 130, // 堅牢建物（RC・鉄骨など、規模大）
+        "3003" => 60,  // 普通無壁舎（カーポート等、滞留少）
+        "3004" => 80,  // 堅牢無壁舎
+        _ => 100,      // 不明・未分類
+    };
+
+    let total_rate = usage_rate * height_rate * structure_rate / (100 * 100);
     let calculated_point = (BLDG_RISK_BASE * total_rate) / 100;
     std::cmp::min(calculated_point, 100) as u8
 }
@@ -266,62 +292,4 @@ fn tran_point(attr: TranAttribute) -> u8 {
     let total_rate = (usage_rate * class_rate) / 100;
     let calculated_point = (TRNA_RISK_BASE * total_rate) / 100;
     std::cmp::min(calculated_point, 100) as u8
-}
-
-/// 2Dの建物リスクマップを受け取り、実際の建物高さを考慮しながら高さ方向に減衰（1mあたり-4）させながら3D展開する
-fn expand_bldg_to_3d(
-    bldg_2d: SpatialIdTable<u8>,
-    bldg_table: &SpatialIdTable<u8>,
-) -> SpatialIdTable<u8> {
-    // 1. 各 (X, Y) 座標における建物の最大高さ (F値) をマップ化
-    let mut bldg_max_height = std::collections::HashMap::new();
-    for (flex_id, _) in bldg_table.iter() {
-        let key = (flex_id.x_index(), flex_id.y_index());
-        bldg_max_height
-            .entry(key)
-            .and_modify(|e| *e = std::cmp::max(*e, flex_id.f_index()))
-            .or_insert(flex_id.f_index());
-    }
-
-    // 2. 2Dマップのセルを高さ方向に展開
-    let mut result = SpatialIdTable::new();
-    for (flex_id, val) in bldg_2d.iter() {
-        let x = flex_id.x_index();
-        let y = flex_id.y_index();
-        let h = bldg_max_height.get(&(x, y)).copied().unwrap_or(0);
-
-        for f in 0..=100 {
-            // 建物の高さ以下なら減衰なし、屋上より高くなれば1メートルごとに4ポイント減衰
-            let decayed = if f <= h {
-                *val
-            } else {
-                val.saturating_sub(((f - h) * 4) as u8)
-            };
-            if decayed > 0 {
-                let new_id = flex_id.level_f(ZOOM_LEVEL, f, f).unwrap().next().unwrap();
-                result.insert(new_id, decayed);
-            } else {
-                break; // リスクが0になったらそれ以上の高度はスキップ
-            }
-        }
-    }
-    result
-}
-
-/// 2Dの道路リスクマップを受け取り、高度に応じて急速に減衰（1mあたり-15）させながら3D展開する
-fn expand_tran_to_3d(tran_2d: SpatialIdTable<u8>) -> SpatialIdTable<u8> {
-    let mut result = SpatialIdTable::new();
-    for (flex_id, val) in tran_2d.iter() {
-        for f in 0..=100 {
-            // 道路は地上 (F=0) にのみ存在するため、上空へ行くほど急速に減衰
-            let decayed = val.saturating_sub((f * 15) as u8);
-            if decayed > 0 {
-                let new_id = flex_id.level_f(ZOOM_LEVEL, f, f).unwrap().next().unwrap();
-                result.insert(new_id, decayed);
-            } else {
-                break; // リスクが0になったらそれ以上の高度はスキップ
-            }
-        }
-    }
-    result
 }
