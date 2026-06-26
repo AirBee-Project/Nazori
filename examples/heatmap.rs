@@ -10,7 +10,7 @@ use std::{
 const ZOOM_LEVEL: u8 = 24;
 
 /// システム全体における「最も標準的な道路・用途」のベースリスク値
-const TRNA_RISK_BASE: u32 = 70;
+const TRNA_RISK_BASE: u32 = 90;
 
 /// 建物における「最も標準的な用途・高さ」のベースリスク値
 const BLDG_RISK_BASE: u32 = 10;
