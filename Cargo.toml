@@ -7,8 +7,9 @@ edition = "2024"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["parallel"]
+default = ["std", "parallel"]
 parallel = ["dep:rayon"]
+std = ["kasane-logic/std"]
 
 [dependencies]
 quick-xml = "0.40.1"
