@@ -131,12 +131,9 @@ impl<R: BufRead> BldgParser<R> {
             n if is_local(n, b"lod1HeightType") => self.current_tag = TargetTag::Lod1HeightType,
             n if is_local(n, b"prefecture") => self.current_tag = TargetTag::UroPrefecture,
             n if is_local(n, b"usage") => self.current_tag = TargetTag::BldgUsage,
-            n if is_local(n, b"Polygon") => {
-                self.current_tag = TargetTag::None;
-                self.pos_text_buf.clear();
-            }
             n if is_local(n, b"posList") => {
                 self.current_tag = TargetTag::PosList;
+                self.pos_text_buf.clear();
             }
             _ => {}
         }
