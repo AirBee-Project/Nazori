@@ -20,6 +20,7 @@ enum LodLevel {
     None,
     Lod1,
     Lod2,
+    Lod3,
 }
 
 fn is_local(name: &[u8], local: &[u8]) -> bool {
@@ -40,6 +41,7 @@ pub(crate) struct TranParser<R: BufRead> {
     current_lod: LodLevel,
     lod1_surfaces: Vec<Vec<Coordinate>>,
     lod2_surfaces: Vec<Vec<Coordinate>>,
+    lod3_surfaces: Vec<Vec<Coordinate>>,
     current_ring: Vec<Coordinate>,
     pos_text_buf: String,
 }
@@ -64,6 +66,7 @@ impl<R: BufRead> TranParser<R> {
             current_lod: LodLevel::None,
             lod1_surfaces: Vec::new(),
             lod2_surfaces: Vec::new(),
+            lod3_surfaces: Vec::new(),
             current_ring: Vec::new(),
             pos_text_buf: String::new(),
         }
@@ -108,6 +111,9 @@ impl<R: BufRead> TranParser<R> {
             LodLevel::Lod2 => self
                 .lod2_surfaces
                 .push(std::mem::take(&mut self.current_ring)),
+            LodLevel::Lod3 => self
+                .lod3_surfaces
+                .push(std::mem::take(&mut self.current_ring)),
             LodLevel::None => {}
         }
     }
@@ -117,12 +123,16 @@ impl<R: BufRead> TranParser<R> {
             n if is_local(n, b"Road")
                 || is_local(n, b"Railway")
                 || is_local(n, b"Square")
-                || is_local(n, b"Track") =>
+                || is_local(n, b"Track")
+                || is_local(n, b"Intersection")
+                || is_local(n, b"TrafficArea")
+                || is_local(n, b"AuxiliaryTrafficArea") =>
             {
                 self.current_attribute = TranAttribute::default();
                 Self::parse_id(&mut self.current_attribute, &e);
                 self.lod1_surfaces.clear();
                 self.lod2_surfaces.clear();
+                self.lod3_surfaces.clear();
                 self.current_lod = LodLevel::None;
                 self.current_tag = TargetTag::None;
             }
@@ -132,12 +142,18 @@ impl<R: BufRead> TranParser<R> {
             n if is_local(n, b"lod2MultiSurface") || is_local(n, b"lod2Solid") => {
                 self.current_lod = LodLevel::Lod2
             }
+            n if is_local(n, b"lod3MultiSurface") || is_local(n, b"lod3Solid") => {
+                self.current_lod = LodLevel::Lod3
+            }
             n if is_local(n, b"class") => self.current_tag = TargetTag::Class,
             n if is_local(n, b"function") => self.current_tag = TargetTag::Function,
             n if is_local(n, b"usage") => self.current_tag = TargetTag::Usage,
+            n if is_local(n, b"Polygon") => {
+                self.current_tag = TargetTag::None;
+                self.pos_text_buf.clear();
+            }
             n if is_local(n, b"posList") => {
                 self.current_tag = TargetTag::PosList;
-                self.pos_text_buf.clear();
             }
             _ => {}
         }
@@ -172,9 +188,14 @@ impl<R: BufRead> TranParser<R> {
             n if is_local(n, b"Road")
                 || is_local(n, b"Railway")
                 || is_local(n, b"Square")
-                || is_local(n, b"Track") =>
+                || is_local(n, b"Track")
+                || is_local(n, b"Intersection")
+                || is_local(n, b"TrafficArea")
+                || is_local(n, b"AuxiliaryTrafficArea") =>
             {
-                let surfaces = if !self.lod2_surfaces.is_empty() {
+                let surfaces = if !self.lod3_surfaces.is_empty() {
+                    std::mem::take(&mut self.lod3_surfaces)
+                } else if !self.lod2_surfaces.is_empty() {
                     std::mem::take(&mut self.lod2_surfaces)
                 } else {
                     std::mem::take(&mut self.lod1_surfaces)
@@ -186,7 +207,9 @@ impl<R: BufRead> TranParser<R> {
             n if is_local(n, b"lod1MultiSurface")
                 || is_local(n, b"lod1Solid")
                 || is_local(n, b"lod2MultiSurface")
-                || is_local(n, b"lod2Solid") =>
+                || is_local(n, b"lod2Solid")
+                || is_local(n, b"lod3MultiSurface")
+                || is_local(n, b"lod3Solid") =>
             {
                 self.current_lod = LodLevel::None;
             }
