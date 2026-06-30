@@ -49,14 +49,14 @@ fn main() {
     // 3. 建物テーブルを F=0 に潰してから、建物の周りへ同心円状にリスクを伝播（減衰）させる
     let t = Instant::now();
     let bldg_risk_map = bldg_table
-        .plan()
+        .query()
         .level_f(ZOOM_LEVEL, 0, 0) // F=0に潰す（高さ層の重複を除いて spread を軽くする）
         // 建物中心から離れるほどリスクが下がる同心円状の伝播。重なりは大きい方を採用(既定のMax)。
         .spread(ZOOM_LEVEL, BLDG_SPREAD_RADIUS, |v, dist| {
             let decayed = v.saturating_sub((dist * BLDG_SPREAD_DECAY) as u8);
             (decayed > 0).then_some(decayed)
         })
-        .execution()
+        .run()
         .unwrap();
     println!(
         "[3] bldg spread          : {:>10} us (cells = {})",
@@ -76,9 +76,9 @@ fn main() {
     // 5. 道路テーブルを F=0 に潰す（高さ方向の設定は 6.1 で level により行う）
     let t = Instant::now();
     let tran_risk_map = tran_table
-        .plan()
+        .query()
         .level_f(ZOOM_LEVEL, 0, 0) // F=0に潰す
-        .execution()
+        .run()
         .unwrap();
     println!(
         "[5] tran spread (2D)     : {:>10} us (cells = {})",
@@ -89,9 +89,9 @@ fn main() {
     // 6. 建物リスクは level で高さを揃え、地上から RISK_HEIGHT まで一定リスクのバンドにする
     let t = Instant::now();
     let bldg_risk_map_3d = bldg_risk_map
-        .plan()
+        .query()
         .level_f(ZOOM_LEVEL, 0, RISK_HEIGHT)
-        .execution()
+        .run()
         .unwrap();
     println!(
         "[6] bldg expand 3D       : {:>10} us (cells = {})",
@@ -102,9 +102,9 @@ fn main() {
     // 6.1. 道路リスクも建物と同じく level で地上から RISK_HEIGHT まで一定リスクのバンドにする
     let t = Instant::now();
     let tran_risk_map_3d = tran_risk_map
-        .plan()
+        .query()
         .level_f(ZOOM_LEVEL, 0, RISK_HEIGHT)
-        .execution()
+        .run()
         .unwrap();
     println!(
         "[6.1] tran expand 3D     : {:>10} us (cells = {})",
@@ -115,9 +115,9 @@ fn main() {
     // 6.2. 3Dでの合成
     let t = Instant::now();
     let mut riskmap = bldg_risk_map_3d
-        .plan()
+        .query()
         .union_with(tran_risk_map_3d, ConflictPolicy::Max)
-        .execution()
+        .run()
         .unwrap();
     println!(
         "[6.2] union (bldg + tran) 3D: {:>10} us (cells = {})",
